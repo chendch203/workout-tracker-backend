@@ -68,10 +68,13 @@ app.get('/health', (req, res) => {
 });
 
 // API 路由
-app.post('/api/register', async (req, res) => {
+app.post('/api/v1/register', async (req, res) => {
   try {
+    console.log('Register request:', req.body);
     const { username, password } = req.body;
+    
     if (!username || !password) {
+      console.log('Missing username or password');
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
@@ -80,6 +83,7 @@ app.post('/api/register', async (req, res) => {
     // 检查用户名是否已存在
     const existingUser = await db.get('SELECT id FROM users WHERE username = ?', username);
     if (existingUser) {
+      console.log('Username already exists:', username);
       return res.status(400).json({ error: 'Username already exists' });
     }
 
@@ -93,17 +97,21 @@ app.post('/api/register', async (req, res) => {
     );
 
     const token = jwt.sign({ userId: result.lastID }, JWT_SECRET);
-    res.json({ token });
+    console.log('User registered successfully:', username);
+    res.status(201).json({ token });
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/v1/login', async (req, res) => {
   try {
+    console.log('Login request:', req.body);
     const { username, password } = req.body;
+    
     if (!username || !password) {
+      console.log('Missing username or password');
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
@@ -112,16 +120,19 @@ app.post('/api/login', async (req, res) => {
     // 查找用户
     const user = await db.get('SELECT * FROM users WHERE username = ?', username);
     if (!user) {
+      console.log('User not found:', username);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     // 验证密码
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
+      console.log('Invalid password for user:', username);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
+    console.log('User logged in successfully:', username);
     res.json({ token });
   } catch (error) {
     console.error('Login error:', error);
@@ -148,10 +159,13 @@ const authenticateToken = (req: any, res: any, next: any) => {
 };
 
 // 运动记录相关的路由
-app.post('/api/workouts', authenticateToken, async (req: any, res) => {
+app.post('/api/v1/workouts', authenticateToken, async (req: any, res) => {
   try {
+    console.log('Add workout request:', req.body);
     const { date, type, subtype } = req.body;
+    
     if (!date || !type || !subtype) {
+      console.log('Missing required workout fields');
       return res.status(400).json({ error: 'Date, type and subtype are required' });
     }
 
@@ -161,20 +175,23 @@ app.post('/api/workouts', authenticateToken, async (req: any, res) => {
       [req.user.userId, date, type, subtype]
     );
 
-    res.json({ id: result.lastID });
+    console.log('Workout added successfully');
+    res.status(201).json({ id: result.lastID });
   } catch (error) {
     console.error('Create workout error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-app.get('/api/workouts', authenticateToken, async (req: any, res) => {
+app.get('/api/v1/workouts', authenticateToken, async (req: any, res) => {
   try {
+    console.log('Get workouts request for user:', req.user.userId);
     const db = await dbPromise;
     const workouts = await db.all(
       'SELECT * FROM workouts WHERE user_id = ? ORDER BY date DESC',
       req.user.userId
     );
+    console.log('Retrieved workouts:', workouts.length);
     res.json(workouts);
   } catch (error) {
     console.error('Get workouts error:', error);
