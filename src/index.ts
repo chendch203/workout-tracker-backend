@@ -19,24 +19,14 @@ interface AuthRequest extends Request {
     };
 }
 
-// 配置 CORS
-app.use(cors({
-    origin: (origin, callback) => {
-        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true
-}));
-
-app.use(express.json());
+// 在 Vercel 环境中使用内存数据库
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const dbPath = isDevelopment ? path.join(__dirname, 'database.sqlite') : ':memory:';
 
 // 数据库初始化
 async function initializeDatabase() {
     const db = await open({
-        filename: process.env.DATABASE_URL || path.join(__dirname, 'database.sqlite'),
+        filename: dbPath,
         driver: sqlite3.Database
     });
 
@@ -65,6 +55,20 @@ initializeDatabase().then((database) => {
     db = database;
     console.log('Database initialized');
 });
+
+// 配置 CORS
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
+
+app.use(express.json());
 
 // 健康检查端点
 app.get('/health', (_, res) => {
